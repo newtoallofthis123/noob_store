@@ -38,6 +38,19 @@ func (s *Store) InitTables() error {
 		created_at timestamp default now()
 	);
 
+	CREATE TABLE IF NOT EXISTS users(
+		id text primary key,
+		email text not null,
+		password bytea not null,
+		created_at timestamp default now()
+	);
+
+	CREATE TABLE IF NOT EXISTS sessions(
+		id text primary key,
+		user_id text references users(id),
+		created_at timestamp default now()
+	);
+
 	CREATE TABLE IF NOT EXISTS metadata(
 		id text primary key,
 		name text not null,
@@ -45,6 +58,7 @@ func (s *Store) InitTables() error {
 		mime text not null,
 		path text not null,
 		blob text references blobs(id),
+		user_id text references users(id),
 		created_at timestamp default now()
 	);
 

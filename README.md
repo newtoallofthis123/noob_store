@@ -10,8 +10,8 @@ Written in Golang, this is a mono repo that holds the api as well as the fs laye
 - [x] GetBlob
 - [x] Metadata Layer
 - [x] Handler
-- [ ] Api Layer
-- [ ] Authentication
+- [x] Api Layer
+- [x] Authentication
 - [ ] Horizontal Scaling
 - [ ] Integration
 - [ ] Lib
