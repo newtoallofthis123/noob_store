@@ -57,20 +57,20 @@ func (h *Handler) selectBucket() *Bucket {
 	return nil
 }
 
-func (h *Handler) Insert(fullPath string, content []byte) (*types.Blob, error) {
+func (h *Handler) Insert(fullPath string, content []byte) (*types.Blob, *types.Metadata, error) {
 	b := h.selectBucket()
 	meta := NewMetaData(fullPath)
 	blob, err := b.NewBlob(meta.Path, content)
 	if err != nil {
 		h.logger.Error("Error appending blob: " + err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 	h.logger.Debug("Appened Blob to bucket: " + meta.Path)
 
 	err = h.store.InsertBlob(blob)
 	if err != nil {
 		h.logger.Error("Error inserting blob to store: " + err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 
 	meta.Blob = blob.Id
@@ -78,10 +78,10 @@ func (h *Handler) Insert(fullPath string, content []byte) (*types.Blob, error) {
 	err = h.store.InsertMetaData(meta)
 	if err != nil {
 		h.logger.Error("Error inserting blob to store: " + err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 
-	return blob, nil
+	return blob, &meta, nil
 }
 
 func NewMetaData(fullPath string) types.Metadata {
@@ -154,6 +154,27 @@ func (h *Handler) Get(path string) (types.Blob, error) {
 func (h *Handler) GetDir(dirPath string) ([]types.Blob, error) {
 	fullPath := filepath.Clean(dirPath)
 	metas, err := h.store.GetMetaDataByDir(fullPath)
+	if err != nil {
+		return nil, err
+	}
+
+	blobs := make([]types.Blob, 0)
+
+	for _, m := range metas {
+		blob, err := h.fillBlob(m.Blob)
+		if err != nil {
+			h.logger.Error("Error getting blob: " + m.Blob)
+			continue
+		}
+
+		blobs = append(blobs, blob)
+	}
+
+	return blobs, nil
+}
+
+func (h *Handler) GetAll() ([]types.Blob, error) {
+	metas, err := h.store.GetAllFiles()
 	if err != nil {
 		return nil, err
 	}

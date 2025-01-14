@@ -102,7 +102,7 @@ func (db *Store) GetAllFiles() ([]types.Metadata, error) {
 }
 
 func (db *Store) GetMetaDataById(id string) (types.Metadata, error) {
-	row := db.pq.Select("*").Where(squirrel.Eq{"id": id}).RunWith(db.db).QueryRow()
+	row := db.pq.Select("*").From("metadata").Where(squirrel.Eq{"id": id}).RunWith(db.db).QueryRow()
 
 	var meta types.Metadata
 
