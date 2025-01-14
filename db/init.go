@@ -7,11 +7,13 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// Store represents the database and query builder interface
 type Store struct {
 	db *sql.DB
 	pq squirrel.StatementBuilderType
 }
 
+// NewStore initializes a new Store instance and pings the database
 func NewStore(connPath string) (*Store, error) {
 	db, err := sql.Open("postgres", connPath)
 	if err != nil {
@@ -25,6 +27,7 @@ func NewStore(connPath string) (*Store, error) {
 	return &Store{db: db, pq: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)}, nil
 }
 
+// InitTables initialized tables if they are not already existing
 func (s *Store) InitTables() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS blobs(

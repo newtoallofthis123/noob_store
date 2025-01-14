@@ -1,5 +1,6 @@
 package types
 
+// Blob represents an object in the store
 type Blob struct {
 	Id        string
 	Name      string
@@ -12,6 +13,7 @@ type Blob struct {
 	CreatedAt string
 }
 
+// BlobRes represents a user presentable blob
 type BlobRes struct {
 	Id        string `json:"id,omitempty"`
 	Name      string `json:"name,omitempty"`
@@ -20,6 +22,7 @@ type BlobRes struct {
 	CreatedAt string `json:"created_at,omitempty"`
 }
 
+// MapBlobToRes maps a private representation of a blob to the public one
 func MapBlobToRes(blob Blob) BlobRes {
 	return BlobRes{
 		Id:        blob.Id,
@@ -30,6 +33,7 @@ func MapBlobToRes(blob Blob) BlobRes {
 	}
 }
 
+// Metadata represents the file metadata for a blob
 type Metadata struct {
 	Id        string `json:"id,omitempty"`
 	Name      string `json:"name,omitempty"`
@@ -41,6 +45,7 @@ type Metadata struct {
 	CreatedAt string `json:"created_at,omitempty"`
 }
 
+// User represents a user
 type User struct {
 	Id        string `json:"id,omitempty"`
 	Email     string `json:"email,omitempty"`
@@ -48,6 +53,7 @@ type User struct {
 	CreatedAt string `json:"created_at,omitempty"`
 }
 
+// Session represents an authenticated session
 type Session struct {
 	Id        string `json:"id,omitempty"`
 	UserId    string `json:"user_id,omitempty"`

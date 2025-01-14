@@ -12,6 +12,7 @@ import (
 	"github.com/newtoallofthis123/ranhash"
 )
 
+// NewBucket initializes a new bucket from a bucket path
 func NewBucket(bucketPath string) (*Bucket, error) {
 	f, err := os.OpenFile(bucketPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm)
 	if err != nil {
@@ -23,11 +24,13 @@ func NewBucket(bucketPath string) (*Bucket, error) {
 	return &Bucket{id: bucketPath, file: f, path: bucketPath, pos: uint64(endPos)}, nil
 }
 
+// parseContent parses the content and header
 func parseContent(content string) (string, string) {
 	strSplit := strings.SplitN(content, "--", 4)
 	return strSplit[1], strSplit[2]
 }
 
+// writeData writes the data to the bucket
 func (b *Bucket) writeData(name string, content []byte) (uint64, error) {
 	// TODO: Handle the case of the len(content) exceeding length of int
 	contentLength := uint64(len(content))
@@ -54,6 +57,7 @@ func (b *Bucket) writeData(name string, content []byte) (uint64, error) {
 	return uint64(endPos - int64(ogPos)), err
 }
 
+// writeHeader writes the header
 func (b *Bucket) writeHeader(name string, size uint64) error {
 	// WARNING: We assume that the writing of the header is always valid
 
@@ -61,12 +65,14 @@ func (b *Bucket) writeHeader(name string, size uint64) error {
 	return err
 }
 
+// writeFooter writes the footer
 func (b *Bucket) writeFooter() error {
 	// WARNING: We assume that the writing of the footer is always valid
 	_, err := b.file.Write([]byte("--&--"))
 	return err
 }
 
+// NewBlob returns a new blob for a filename and it's content
 func (b *Bucket) NewBlob(name string, content []byte) (*types.Blob, error) {
 	id := ranhash.GenerateRandomString(8)
 	hash := md5.New()
@@ -101,6 +107,7 @@ func (b *Bucket) NewBlob(name string, content []byte) (*types.Blob, error) {
 	return &blob, nil
 }
 
+// DiscoverBuckets discovers all viable buckets in a given path
 func DiscoverBuckets(basePath string) ([]string, error) {
 	dir, err := os.ReadDir(basePath)
 	if err != nil {
@@ -118,6 +125,7 @@ func DiscoverBuckets(basePath string) ([]string, error) {
 	return buckets, nil
 }
 
+// GenerateBuckets generates some bucket names to a given basePath
 func GenerateBuckets(basePath string, n uint8) []string {
 	buckets := make([]string, 0)
 

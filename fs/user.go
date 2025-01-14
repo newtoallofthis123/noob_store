@@ -6,6 +6,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// NewUser initializes a new user
 func (h *Handler) NewUser(email, password string) (*types.User, error) {
 	passHash, err := bcrypt.GenerateFromPassword([]byte(password), 0)
 	if err != nil {
@@ -26,6 +27,7 @@ func (h *Handler) NewUser(email, password string) (*types.User, error) {
 	return &user, nil
 }
 
+// NewSession initializes a new session
 func (h *Handler) NewSession(userId string) (*types.Session, error) {
 	session := types.Session{
 		Id:     ranhash.GenerateRandomString(8),

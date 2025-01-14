@@ -14,6 +14,7 @@ import (
 
 const VERSION = 0
 
+// Bucket represents a bucket file
 type Bucket struct {
 	file *os.File
 	path string
@@ -21,12 +22,14 @@ type Bucket struct {
 	pos  uint64
 }
 
+// Handler handles delegation of buckets, store and logger
 type Handler struct {
 	buckets map[string]*Bucket
 	store   *db.Store
 	logger  *slog.Logger
 }
 
+// NewHandler initializes a new handler
 func NewHandler(bucketPaths []string, store *db.Store, logger *slog.Logger) Handler {
 	buckets := make(map[string]*Bucket, 0)
 	for _, path := range bucketPaths {
@@ -45,6 +48,7 @@ func NewHandler(bucketPaths []string, store *db.Store, logger *slog.Logger) Hand
 	}
 }
 
+// selectBucket selects and returns a bucket randomly
 func (h *Handler) selectBucket() *Bucket {
 	ran := rand.Intn(len(h.buckets))
 	c := 0
@@ -57,6 +61,7 @@ func (h *Handler) selectBucket() *Bucket {
 	return nil
 }
 
+// Insert inserts a new blob into a random bucket
 func (h *Handler) Insert(fullPath string, content []byte, userId string) (*types.Blob, *types.Metadata, error) {
 	b := h.selectBucket()
 	meta := NewMetaData(fullPath, userId)
@@ -84,6 +89,7 @@ func (h *Handler) Insert(fullPath string, content []byte, userId string) (*types
 	return blob, &meta, nil
 }
 
+// NewMetaData returns a new metadata struct
 func NewMetaData(fullPath string, userId string) types.Metadata {
 	fullPath = filepath.Clean(fullPath)
 	name := filepath.Base(fullPath)
@@ -104,6 +110,7 @@ func NewMetaData(fullPath string, userId string) types.Metadata {
 	}
 }
 
+// fillBlob fills in the details of a blob
 func (h *Handler) fillBlob(blobId string) (types.Blob, error) {
 	blob, err := h.store.GetBlobById(blobId)
 	if err != nil {
@@ -134,6 +141,7 @@ func (h *Handler) fillBlob(blobId string) (types.Blob, error) {
 	return blob, nil
 }
 
+// Get gets a blob from the buckets by using the given blob path
 func (h *Handler) Get(path string) (types.Blob, error) {
 	name := filepath.Base(path)
 	fullPath := filepath.Clean(path)
@@ -152,6 +160,7 @@ func (h *Handler) Get(path string) (types.Blob, error) {
 	return blob, nil
 }
 
+// GetDir gets all the blobs in the dir
 func (h *Handler) GetDir(dirPath string) ([]types.Blob, error) {
 	fullPath := filepath.Clean(dirPath)
 	metas, err := h.store.GetMetaDataByDir(fullPath)
@@ -174,6 +183,7 @@ func (h *Handler) GetDir(dirPath string) ([]types.Blob, error) {
 	return blobs, nil
 }
 
+// GetAll gets all of the blobs stored
 func (h *Handler) GetAll() ([]types.Blob, error) {
 	metas, err := h.store.GetAllFiles()
 	if err != nil {
