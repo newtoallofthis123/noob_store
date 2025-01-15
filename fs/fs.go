@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"fmt"
 	"log/slog"
 	"math/rand"
 	"os"
@@ -25,7 +26,6 @@ type Bucket struct {
 // Handler handles delegation of buckets, store and logger
 type Handler struct {
 	buckets map[string]*Bucket
-	store   *db.Store
 	logger  *slog.Logger
 }
 
@@ -43,7 +43,6 @@ func NewHandler(bucketPaths []string, store *db.Store, logger *slog.Logger) Hand
 
 	return Handler{
 		buckets: buckets,
-		store:   store,
 		logger:  logger,
 	}
 }
@@ -62,31 +61,18 @@ func (h *Handler) selectBucket() *Bucket {
 }
 
 // Insert inserts a new blob into a random bucket
-func (h *Handler) Insert(fullPath string, content []byte, userId string) (*types.Blob, *types.Metadata, error) {
+func (h *Handler) Insert(fullPath string, content []byte, userId string) (types.Blob, types.Metadata, error) {
 	b := h.selectBucket()
 	meta := NewMetaData(fullPath, userId)
 	blob, err := b.NewBlob(meta.Path, content)
 	if err != nil {
 		h.logger.Error("Error appending blob: " + err.Error())
-		return nil, nil, err
+		return types.Blob{}, types.Metadata{}, err
 	}
 	h.logger.Debug("Appened Blob to bucket: " + meta.Path)
-
-	err = h.store.InsertBlob(blob)
-	if err != nil {
-		h.logger.Error("Error inserting blob to store: " + err.Error())
-		return nil, nil, err
-	}
-
 	meta.Blob = blob.Id
 
-	err = h.store.InsertMetaData(meta)
-	if err != nil {
-		h.logger.Error("Error inserting blob to store: " + err.Error())
-		return nil, nil, err
-	}
-
-	return blob, &meta, nil
+	return blob, meta, nil
 }
 
 // NewMetaData returns a new metadata struct
@@ -111,96 +97,52 @@ func NewMetaData(fullPath string, userId string) types.Metadata {
 }
 
 // fillBlob fills in the details of a blob
-func (h *Handler) fillBlob(blobId string) (types.Blob, error) {
-	blob, err := h.store.GetBlobById(blobId)
-	if err != nil {
-		h.logger.Error("Error getting blob: " + blobId)
-		return types.Blob{}, err
-	}
-
+func (h *Handler) fillBlob(blob *types.Blob) error {
 	b := h.buckets[blob.Bucket]
 
 	file, err := os.Open(b.path)
 	if err != nil {
 		h.logger.Error("Unable to open file: " + err.Error())
-		return types.Blob{}, err
+		return err
 	}
 
 	buff := make([]byte, blob.Size)
 
+	fmt.Println(len(buff))
+
 	n, err := file.ReadAt(buff, int64(blob.Start))
 	if err != nil {
 		h.logger.Error("Error reading bucket: " + err.Error())
-		return types.Blob{}, err
+		return err
 	}
 
-	_, content := parseContent(string(buff[:n]))
+	// _, content := parseContent(string(buff[:n]))
 
-	blob.Content = []byte(content)
+	blob.Content = []byte(buff[:n])
 
-	return blob, nil
+	return nil
 }
 
 // Get gets a blob from the buckets by using the given blob path
-func (h *Handler) Get(path string) (types.Blob, error) {
-	name := filepath.Base(path)
-	fullPath := filepath.Clean(path)
-	meta, err := h.store.GetMetaData(name, fullPath)
+func (h *Handler) Get(blob *types.Blob) error {
+	err := h.fillBlob(blob)
 	if err != nil {
-		h.logger.Error("Error getting metadata for: " + fullPath)
-		return types.Blob{}, err
+		h.logger.Error("Error filling blob: " + blob.Name)
+		return err
 	}
 
-	blob, err := h.fillBlob(meta.Blob)
-	if err != nil {
-		h.logger.Error("Error getting blob: " + blob.Name)
-		return types.Blob{}, err
-	}
-
-	return blob, nil
+	return nil
 }
 
 // GetDir gets all the blobs in the dir
-func (h *Handler) GetDir(dirPath string) ([]types.Blob, error) {
-	fullPath := filepath.Clean(dirPath)
-	metas, err := h.store.GetMetaDataByDir(fullPath)
-	if err != nil {
-		return nil, err
-	}
-
-	blobs := make([]types.Blob, 0)
-
-	for _, m := range metas {
-		blob, err := h.fillBlob(m.Blob)
+func (h *Handler) GetDir(blobs []*types.Blob) error {
+	for _, b := range blobs {
+		err := h.fillBlob(b)
 		if err != nil {
-			h.logger.Error("Error getting blob: " + m.Blob)
+			h.logger.Error("Error getting blob: " + b.Name)
 			continue
 		}
-
-		blobs = append(blobs, blob)
 	}
 
-	return blobs, nil
-}
-
-// GetAll gets all of the blobs stored
-func (h *Handler) GetAll() ([]types.Blob, error) {
-	metas, err := h.store.GetAllFiles()
-	if err != nil {
-		return nil, err
-	}
-
-	blobs := make([]types.Blob, 0)
-
-	for _, m := range metas {
-		blob, err := h.fillBlob(m.Blob)
-		if err != nil {
-			h.logger.Error("Error getting blob: " + m.Blob)
-			continue
-		}
-
-		blobs = append(blobs, blob)
-	}
-
-	return blobs, nil
+	return nil
 }

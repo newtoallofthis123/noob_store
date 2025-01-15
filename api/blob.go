@@ -1,8 +1,8 @@
 package api
 
 import (
+	"fmt"
 	"io"
-	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/newtoallofthis123/noob_store/types"
@@ -22,81 +22,6 @@ func (s *Server) checkAuth(authKey string) (types.Session, bool) {
 	}
 
 	return session, true
-}
-
-func (s *Server) handleFileMetadata(c *gin.Context) {
-	authKey := c.GetHeader("Authorization")
-	session, exists := s.checkAuth(authKey)
-	if !exists {
-		c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
-		return
-	}
-
-	path := c.Query("path")
-	name := c.Query("name")
-	if path == "" {
-		c.JSON(500, gin.H{"err": "Need a valid path"})
-		return
-	}
-	if name == "" {
-		name = filepath.Base(path)
-	}
-
-	path = filepath.Clean(path)
-	name = filepath.Clean(name)
-
-	metadata, err := s.db.GetMetaData(name, path)
-	if err != nil {
-		c.JSON(500, gin.H{"err": "Failed to retrieve metadata: " + err.Error()})
-		return
-	}
-	if metadata.UserId != session.UserId {
-		c.JSON(500, gin.H{"err": "Unauthorized access to file from userId: " + session.UserId})
-		return
-	}
-
-	c.JSON(200, metadata)
-}
-
-func (s *Server) handleFileDownload(c *gin.Context) {
-	authKey := c.GetHeader("Authorization")
-	session, exists := s.checkAuth(authKey)
-	if !exists {
-		c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
-		return
-	}
-	path := c.Query("path")
-	if path == "" {
-		c.JSON(500, gin.H{"err": "Need a valid path"})
-		return
-	}
-	path = filepath.Clean(path)
-	name := filepath.Base(path)
-	meta, err := s.db.GetMetaData(name, path)
-	if err != nil {
-		c.JSON(500, gin.H{"err": "Failed to retrieve metadata: " + err.Error()})
-		return
-	}
-	if meta.UserId != session.UserId {
-		c.JSON(500, gin.H{"err": "Unauthorized access to file from userId: " + session.UserId})
-		return
-	}
-
-	blob, err := s.handler.Get(path)
-	if err != nil {
-		c.JSON(500, gin.H{"err": "Failed to retrieve blob: " + err.Error()})
-		return
-	}
-
-	n, err := c.Writer.Write(blob.Content)
-	if err != nil {
-		c.JSON(500, gin.H{"err": "Unable to write: " + err.Error()})
-		return
-	}
-	if n != len(blob.Content) {
-		c.JSON(500, gin.H{"err": "File integrity check failed"})
-		return
-	}
 }
 
 func (s *Server) handleFileMetadataById(c *gin.Context) {
@@ -131,12 +56,12 @@ func (s *Server) handleFileMetadataById(c *gin.Context) {
 }
 
 func (s *Server) handleFileDownloadById(c *gin.Context) {
-	authKey := c.GetHeader("Authorization")
-	session, exists := s.checkAuth(authKey)
-	if !exists {
-		c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
-		return
-	}
+	// authKey := c.GetHeader("Authorization")
+	// session, exists := s.checkAuth(authKey)
+	// if !exists {
+	// 	c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
+	// 	return
+	// }
 
 	id, exists := c.Params.Get("id")
 	if !exists {
@@ -153,16 +78,27 @@ func (s *Server) handleFileDownloadById(c *gin.Context) {
 		}
 	}
 
-	if meta.UserId != session.UserId {
-		c.JSON(500, gin.H{"err": "Unauthorized access to file from userId: " + session.UserId})
-		return
+	// if meta.UserId != session.UserId {
+	// 	c.JSON(500, gin.H{"err": "Unauthorized access to file from userId: " + session.UserId})
+	// 	return
+	// }
+
+	blob, err := s.cache.GetBlob(meta.Blob)
+	if err != nil {
+		blob, err = s.db.GetBlobById(meta.Blob)
+		if err != nil {
+			c.JSON(500, gin.H{"err": "Failed to retrieve blob: " + err.Error()})
+			return
+		}
 	}
 
-	blob, err := s.handler.Get(meta.Path)
+	err = s.handler.Get(&blob)
 	if err != nil {
 		c.JSON(500, gin.H{"err": "Failed to retrieve blob: " + err.Error()})
 		return
 	}
+
+	fmt.Println(len(blob.Content))
 
 	n, err := c.Writer.Write(blob.Content)
 	if err != nil {
@@ -205,7 +141,23 @@ func (s *Server) handleFileAdd(c *gin.Context) {
 		return
 	}
 
-	_, meta, err := s.handler.Insert(path, content, session.UserId)
+	blob, meta, err := s.handler.Insert(path, content, session.UserId)
+	err = s.db.InsertBlob(blob)
+	if err != nil {
+		c.JSON(500, gin.H{"err": "Unable to insert file: " + err.Error()})
+		return
+	}
+	err = s.db.InsertMetaData(meta)
+	if err != nil {
+		c.JSON(500, gin.H{"err": "Unable to insert file: " + err.Error()})
+		return
+	}
+	err = s.cache.InsertMetadata(meta)
+	if err != nil {
+		c.JSON(500, gin.H{"err": "Unable to insert file: " + err.Error()})
+		return
+	}
+	err = s.cache.InsertBlob(blob)
 	if err != nil {
 		c.JSON(500, gin.H{"err": "Unable to insert file: " + err.Error()})
 		return

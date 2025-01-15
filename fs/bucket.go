@@ -36,20 +36,20 @@ func (b *Bucket) writeData(name string, content []byte) (uint64, error) {
 	contentLength := uint64(len(content))
 
 	ogPos := b.pos
-	err := b.writeHeader(name, contentLength)
-	if err != nil {
-		return 0, err
-	}
+	// err := b.writeHeader(name, contentLength)
+	// if err != nil {
+	// 	return 0, err
+	// }
 
 	n, err := b.file.Write(content)
 	if err != nil {
 		return 0, err
 	}
 	if n != int(contentLength) {
-		return 0, fmt.Errorf("Data integrity spoilt")
+		return 0, fmt.Errorf("Data integrity spoilt for: " + name)
 	}
 
-	err = b.writeFooter()
+	// err = b.writeFooter()
 
 	endPos, err := b.file.Seek(0, io.SeekEnd)
 	b.pos = uint64(endPos)
@@ -73,7 +73,7 @@ func (b *Bucket) writeFooter() error {
 }
 
 // NewBlob returns a new blob for a filename and it's content
-func (b *Bucket) NewBlob(name string, content []byte) (*types.Blob, error) {
+func (b *Bucket) NewBlob(name string, content []byte) (types.Blob, error) {
 	id := ranhash.GenerateRandomString(8)
 	hash := md5.New()
 
@@ -101,10 +101,10 @@ func (b *Bucket) NewBlob(name string, content []byte) (*types.Blob, error) {
 		Checksum: checksum,
 	}
 	if err != nil {
-		return nil, err
+		return types.Blob{}, err
 	}
 
-	return &blob, nil
+	return blob, nil
 }
 
 // DiscoverBuckets discovers all viable buckets in a given path

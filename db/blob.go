@@ -6,7 +6,7 @@ import (
 )
 
 // InsertBlob inserts a blob into the table
-func (db *Store) InsertBlob(blob *types.Blob) error {
+func (db *Store) InsertBlob(blob types.Blob) error {
 	_, err := db.pq.Insert("blobs").Columns("id", "name", "bucket", "size", "checksum", "start").Values(
 		blob.Id, blob.Name, blob.Bucket, blob.Size, blob.Checksum, blob.Start).RunWith(db.db).Exec()
 	return err

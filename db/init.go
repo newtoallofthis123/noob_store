@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/Masterminds/squirrel"
 	_ "github.com/lib/pq"
@@ -16,12 +15,10 @@ type Store struct {
 
 // NewStore initializes a new Store instance and pings the database
 func NewStore(connPath string) (Store, error) {
-	fmt.Println(connPath)
 	db, err := sql.Open("postgres", connPath)
 	if err != nil {
 		return Store{}, err
 	}
-	fmt.Println("Connected to DB")
 
 	return Store{db: db, pq: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)}, nil
 }
