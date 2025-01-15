@@ -2,15 +2,15 @@ package types
 
 // Blob represents an object in the store
 type Blob struct {
-	Id        string
-	Name      string
-	Bucket    string
-	Start     uint64
-	Content   []byte
-	Size      uint64
-	Checksum  []byte
-	Deleted   bool
-	CreatedAt string
+	Id        string `json:"id,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Bucket    string `json:"bucket,omitempty"`
+	Start     uint64 `json:"start,omitempty"`
+	Content   []byte `json:"content,omitempty"`
+	Size      uint64 `json:"size,omitempty"`
+	Checksum  []byte `json:"checksum,omitempty"`
+	Deleted   bool   `json:"deleted,omitempty"`
+	CreatedAt string `json:"created_at,omitempty"`
 }
 
 // BlobRes represents a user presentable blob

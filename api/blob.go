@@ -1,25 +1,37 @@
 package api
 
 import (
-	"fmt"
 	"io"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
+	"github.com/newtoallofthis123/noob_store/types"
 )
+
+func (s *Server) checkAuth(authKey string) (types.Session, bool) {
+	if authKey == "" {
+		return types.Session{}, false
+	}
+
+	session, err := s.cache.GetSession(authKey)
+	if err != nil {
+		session, err = s.db.GetSession(authKey)
+		if err != nil {
+			return types.Session{}, false
+		}
+	}
+
+	return session, true
+}
 
 func (s *Server) handleFileMetadata(c *gin.Context) {
 	authKey := c.GetHeader("Authorization")
-	if authKey == "" {
-		c.JSON(500, gin.H{"err": "Missing Authorization Header"})
+	session, exists := s.checkAuth(authKey)
+	if !exists {
+		c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
 		return
 	}
 
-	session, exists := s.db.GetSession(authKey)
-	if !exists {
-		c.JSON(500, gin.H{"err": "Missing or expired session"})
-		return
-	}
 	path := c.Query("path")
 	name := c.Query("name")
 	if path == "" {
@@ -33,7 +45,6 @@ func (s *Server) handleFileMetadata(c *gin.Context) {
 	path = filepath.Clean(path)
 	name = filepath.Clean(name)
 
-	fmt.Println(name, path)
 	metadata, err := s.db.GetMetaData(name, path)
 	if err != nil {
 		c.JSON(500, gin.H{"err": "Failed to retrieve metadata: " + err.Error()})
@@ -49,14 +60,9 @@ func (s *Server) handleFileMetadata(c *gin.Context) {
 
 func (s *Server) handleFileDownload(c *gin.Context) {
 	authKey := c.GetHeader("Authorization")
-	if authKey == "" {
-		c.JSON(500, gin.H{"err": "Missing Authorization Header"})
-		return
-	}
-
-	session, exists := s.db.GetSession(authKey)
+	session, exists := s.checkAuth(authKey)
 	if !exists {
-		c.JSON(500, gin.H{"err": "Missing or expired session"})
+		c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
 		return
 	}
 	path := c.Query("path")
@@ -95,14 +101,9 @@ func (s *Server) handleFileDownload(c *gin.Context) {
 
 func (s *Server) handleFileMetadataById(c *gin.Context) {
 	authKey := c.GetHeader("Authorization")
-	if authKey == "" {
-		c.JSON(500, gin.H{"err": "Missing Authorization Header"})
-		return
-	}
-
-	session, exists := s.db.GetSession(authKey)
+	session, exists := s.checkAuth(authKey)
 	if !exists {
-		c.JSON(500, gin.H{"err": "Missing or expired session"})
+		c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
 		return
 	}
 
@@ -112,11 +113,15 @@ func (s *Server) handleFileMetadataById(c *gin.Context) {
 		return
 	}
 
-	metadata, err := s.db.GetMetaDataById(id)
+	metadata, err := s.cache.GetMetadata(id)
 	if err != nil {
-		c.JSON(500, gin.H{"err": "Failed to retrieve metadata: " + err.Error()})
-		return
+		metadata, err = s.db.GetMetaDataById(id)
+		if err != nil {
+			c.JSON(500, gin.H{"err": "Failed to retrieve metadata: " + err.Error()})
+			return
+		}
 	}
+
 	if metadata.UserId != session.UserId {
 		c.JSON(500, gin.H{"err": "Unauthorized access to file from userId: " + session.UserId})
 		return
@@ -127,14 +132,9 @@ func (s *Server) handleFileMetadataById(c *gin.Context) {
 
 func (s *Server) handleFileDownloadById(c *gin.Context) {
 	authKey := c.GetHeader("Authorization")
-	if authKey == "" {
-		c.JSON(500, gin.H{"err": "Missing Authorization Header"})
-		return
-	}
-
-	session, exists := s.db.GetSession(authKey)
+	session, exists := s.checkAuth(authKey)
 	if !exists {
-		c.JSON(500, gin.H{"err": "Missing or expired session"})
+		c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
 		return
 	}
 
@@ -144,10 +144,13 @@ func (s *Server) handleFileDownloadById(c *gin.Context) {
 		return
 	}
 
-	meta, err := s.db.GetMetaDataById(id)
+	meta, err := s.cache.GetMetadata(id)
 	if err != nil {
-		c.JSON(500, gin.H{"err": "Failed to retrieve metadata: " + err.Error()})
-		return
+		meta, err = s.db.GetMetaDataById(id)
+		if err != nil {
+			c.JSON(500, gin.H{"err": "Failed to retrieve metadata: " + err.Error()})
+			return
+		}
 	}
 
 	if meta.UserId != session.UserId {
@@ -173,14 +176,9 @@ func (s *Server) handleFileDownloadById(c *gin.Context) {
 }
 func (s *Server) handleFileAdd(c *gin.Context) {
 	authKey := c.GetHeader("Authorization")
-	if authKey == "" {
-		c.JSON(500, gin.H{"err": "Missing Authorization Header"})
-		return
-	}
-
-	session, exists := s.db.GetSession(authKey)
+	session, exists := s.checkAuth(authKey)
 	if !exists {
-		c.JSON(500, gin.H{"err": "Missing or expired session"})
+		c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
 		return
 	}
 

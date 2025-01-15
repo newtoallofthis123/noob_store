@@ -48,17 +48,17 @@ func (db *Store) CreateSession(session types.Session) error {
 }
 
 // GetSession gets a session from the sessionId
-func (db *Store) GetSession(id string) (types.Session, bool) {
+func (db *Store) GetSession(id string) (types.Session, error) {
 	row := db.pq.Select("*").From("sessions").Where(squirrel.Eq{"id": id}).RunWith(db.db).QueryRow()
 
 	var session types.Session
 
 	err := row.Scan(&session.Id, &session.UserId, &session.CreatedAt)
 	if err != nil {
-		return types.Session{}, false
+		return types.Session{}, err
 	}
 
-	return session, true
+	return session, nil
 }
 
 // TODO: Implement DeleteUser and DeleteSession

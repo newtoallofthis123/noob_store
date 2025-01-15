@@ -11,6 +11,7 @@ type Env struct {
 	ConnString string
 	ListenAddr string
 	BucketPath string
+	CacheConn  string
 }
 
 // Reads the .env file and returns an Env struct.
@@ -25,6 +26,7 @@ func ReadEnv() Env {
 		ConnString: constructDbString(),
 		ListenAddr: getEnv("LISTEN_ADDR"),
 		BucketPath: getEnv("BUCKET_PATH"),
+		CacheConn:  getEnv("CACHE_CONN"),
 	}
 }
 

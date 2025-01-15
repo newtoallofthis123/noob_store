@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/gin-gonic/gin"
+	"github.com/newtoallofthis123/noob_store/cache"
 	"github.com/newtoallofthis123/noob_store/db"
 	"github.com/newtoallofthis123/noob_store/fs"
 	"github.com/newtoallofthis123/noob_store/types"
@@ -14,6 +15,7 @@ type Server struct {
 	listenAddr string
 	logger     *slog.Logger
 	db         *db.Store
+	cache      *cache.Cache
 	handler    *fs.Handler
 }
 
@@ -30,9 +32,13 @@ func NewServer(logger *slog.Logger) *Server {
 		panic(err)
 	}
 
-	buckets, err := fs.DiscoverBuckets(env.BucketPath)
+	cache, err := cache.NewCache(env.CacheConn)
+	if err != nil {
+		panic(err)
+	}
 
-	if len(buckets) == 0 {
+	buckets, err := fs.DiscoverBuckets(env.BucketPath)
+	if len(buckets) == 0 || err != nil {
 		buckets = fs.GenerateBuckets(env.BucketPath, 8)
 	}
 
@@ -42,6 +48,7 @@ func NewServer(logger *slog.Logger) *Server {
 		listenAddr: env.ListenAddr,
 		logger:     logger,
 		db:         &store,
+		cache:      &cache,
 		handler:    &handler,
 	}
 }

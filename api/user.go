@@ -29,6 +29,11 @@ func (s *Server) handleCreateUser(c *gin.Context) {
 		return
 	}
 
+	err = s.cache.InsertSession(*session)
+	if err != nil {
+		s.logger.Error("Error in inserting session to cache" + err.Error())
+	}
+
 	c.JSON(200, session)
 }
 
@@ -59,6 +64,11 @@ func (s *Server) handleLoginUser(c *gin.Context) {
 	if err != nil {
 		c.JSON(500, gin.H{"err": "Error creating session: " + err.Error()})
 		return
+	}
+
+	err = s.cache.InsertSession(*session)
+	if err != nil {
+		s.logger.Error("Error in inserting session to cache" + err.Error())
 	}
 
 	c.JSON(200, session)
