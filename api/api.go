@@ -72,8 +72,15 @@ func (s *Server) Start() {
 	r.POST("/add", s.handleFileAdd)
 	r.GET("/info/:id", s.handleFileMetadataById)
 	r.GET("/file/:id", s.handleFileDownloadById)
-	r.POST("/signup", s.handleCreateUser)
-	r.POST("/login", s.handleLoginUser)
+	r.DELETE("/delete/:id", s.handleDeleteFile)
+
+	user := r.Group("/user")
+
+	user.POST("/create", s.handleCreateUser)
+	user.POST("/login", s.handleLoginUser)
+	user.GET("/ls", s.handleUserLs)
+	user.GET("/path_ls", s.handleUserPathLs)
+	user.DELETE("/delete_dir/:dir", s.handleDeleteDir)
 
 	s.logger.Info("Initialized routes")
 

@@ -61,4 +61,12 @@ func (db *Store) GetSession(id string) (types.Session, error) {
 	return session, nil
 }
 
-// TODO: Implement DeleteUser and DeleteSession
+func (db *Store) DeleteUserById(id string) error {
+	_, err := db.pq.Delete("users").Where(squirrel.Eq{"id": id}).RunWith(db.db).Exec()
+	return err
+}
+
+func (db *Store) DeleteSessionById(id string) error {
+	_, err := db.pq.Delete("sessions").Where(squirrel.Eq{"id": id}).RunWith(db.db).Exec()
+	return err
+}

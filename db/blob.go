@@ -37,3 +37,14 @@ func (db *Store) GetBlobById(id string) (types.Blob, error) {
 
 	return blob, nil
 }
+
+// DeleteBlobById deletes a blob with a given id
+func (db *Store) DeleteBlobById(id string) error {
+	_, err := db.pq.Delete("blobs").Where(squirrel.Eq{"id": id}).RunWith(db.db).Exec()
+	return err
+}
+
+func (db *Store) MarkBlobDelete(id string) error {
+	_, err := db.pq.Update("blobs").Set("deleted", true).Where(squirrel.Eq{"id": id}).RunWith(db.db).Exec()
+	return err
+}

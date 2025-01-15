@@ -88,3 +88,54 @@ func (db *Store) GetMetaDataById(id string) (types.Metadata, error) {
 
 	return meta, nil
 }
+
+// GetMetadatasByUser gets all metadatas associated with a user
+func (db *Store) GetMetadatasByUser(userId string) ([]types.Metadata, error) {
+	rows, err := db.pq.Select("*").From("metadata").Where(squirrel.Eq{"user_id": userId}).RunWith(db.db).Query()
+	if err != nil {
+		return nil, err
+	}
+	metas := make([]types.Metadata, 0)
+
+	for rows.Next() {
+
+		var meta types.Metadata
+
+		err := rows.Scan(&meta.Id, &meta.Name, &meta.Parent, &meta.Mime, &meta.Path, &meta.Blob, &meta.UserId, &meta.CreatedAt)
+		if err != nil {
+			continue
+		}
+
+		metas = append(metas, meta)
+	}
+
+	return metas, nil
+}
+
+// GetMetadataDirByUser gets all metadatas associated with a user under a dir
+func (db *Store) GetMetadataDirByUser(userId, dir string) ([]types.Metadata, error) {
+	rows, err := db.pq.Select("*").From("metadata").Where("user_id LIKE ? AND parent LIKE ?", userId, dir).RunWith(db.db).Query()
+	if err != nil {
+		return nil, err
+	}
+	metas := make([]types.Metadata, 0)
+
+	for rows.Next() {
+
+		var meta types.Metadata
+
+		err := rows.Scan(&meta.Id, &meta.Name, &meta.Parent, &meta.Mime, &meta.Path, &meta.Blob, &meta.UserId, &meta.CreatedAt)
+		if err != nil {
+			continue
+		}
+
+		metas = append(metas, meta)
+	}
+
+	return metas, nil
+}
+
+func (db *Store) DeleteMetadataById(id string) error {
+	_, err := db.pq.Delete("metadata").Where(squirrel.Eq{"id": id}).RunWith(db.db).Exec()
+	return err
+}

@@ -197,3 +197,102 @@ func (s *Server) handleFileAdd(c *gin.Context) {
 	s.logger.Debug("Successfully added blob: " + blob.Id)
 	c.JSON(200, meta)
 }
+
+func (s *Server) handleDeleteFile(c *gin.Context) {
+	authKey := c.GetHeader("Authorization")
+	session, exists := s.checkAuth(authKey)
+	if !exists {
+		s.logger.Error("Unauthorized session: " + authKey)
+		c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
+		return
+	}
+
+	fileId := c.Param("id")
+
+	meta, err := s.db.GetMetaDataById(fileId)
+	if err != nil {
+		s.logger.Error("Unable to find file with id: " + fileId + " with err: " + err.Error())
+		c.JSON(500, gin.H{"err": "Unable to find file"})
+		return
+	}
+
+	if meta.UserId != session.UserId {
+		s.logger.Warn("Prevented Unauthorized access of file: " + fileId + " by user " + session.UserId)
+		c.JSON(500, gin.H{"err": "Unauthorized file access"})
+		return
+	}
+
+	err = s.db.DeleteMetadataById(meta.Id)
+	if err != nil {
+		s.logger.Error("Unable to delete file with id: " + fileId + " with err: " + err.Error())
+		err = s.db.InsertMetaData(meta)
+		if err != nil {
+			s.logger.Error("Unable to retrieve file with id: " + fileId + " with err: " + err.Error())
+			c.JSON(500, gin.H{"err": "Unable to atomically delete file + lost file access"})
+			return
+		}
+		c.JSON(200, gin.H{"failure": "Failed to delete file: " + fileId + " but file is preserved."})
+		return
+	}
+
+	_ = s.db.MarkBlobDelete(meta.Blob)
+
+	c.JSON(200, gin.H{"success": "Deleted file with id: " + fileId})
+}
+
+func (s *Server) handleDeleteDir(c *gin.Context) {
+	authKey := c.GetHeader("Authorization")
+	session, exists := s.checkAuth(authKey)
+	if !exists {
+		s.logger.Error("Unauthorized session: " + authKey)
+		c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
+		return
+	}
+
+	dir := c.Param("dir")
+
+	metas, err := s.db.GetMetaDataByDir(dir)
+	if err != nil {
+		s.logger.Error("Unable to find file with id: " + dir + " with err: " + err.Error())
+		c.JSON(500, gin.H{"err": "Unable to find file"})
+		return
+	}
+
+	bak := make([]types.Metadata, 0)
+	hasErr := false
+
+	for _, meta := range metas {
+		bak = append(bak, meta)
+		if meta.UserId != session.UserId {
+			s.logger.Warn("Prevented Unauthorized access of file: " + dir + " by user " + session.UserId)
+			hasErr = true
+			break
+		}
+
+		err = s.db.DeleteMetadataById(meta.Id)
+		if err != nil {
+			s.logger.Error("Unable to delete file with id: " + dir + " with err: " + err.Error())
+			hasErr = true
+			break
+		}
+	}
+
+	for _, m := range bak {
+		if hasErr {
+			err = s.db.InsertMetaData(m)
+		} else {
+			err = s.db.MarkBlobDelete(m.Blob)
+		}
+	}
+	if err != nil {
+		s.logger.Error("Unabled to recover from dir deletion operation failure: " + dir + " with err: " + err.Error())
+		c.JSON(500, gin.H{"err": "Delete failed unatomically"})
+		return
+	}
+
+	if hasErr {
+		c.JSON(200, gin.H{"failure": "Failed to delete dir: " + dir + " but files are preserved."})
+	} else {
+		c.JSON(200, gin.H{"success": "Deleted dir: " + dir})
+	}
+}
