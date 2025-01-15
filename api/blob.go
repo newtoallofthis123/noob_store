@@ -56,12 +56,12 @@ func (s *Server) handleFileMetadataById(c *gin.Context) {
 }
 
 func (s *Server) handleFileDownloadById(c *gin.Context) {
-	// authKey := c.GetHeader("Authorization")
-	// session, exists := s.checkAuth(authKey)
-	// if !exists {
-	// 	c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
-	// 	return
-	// }
+	authKey := c.GetHeader("Authorization")
+	session, exists := s.checkAuth(authKey)
+	if !exists {
+		c.JSON(500, gin.H{"err": "Invalid Authorization or missing session"})
+		return
+	}
 
 	id, exists := c.Params.Get("id")
 	if !exists {
@@ -78,10 +78,10 @@ func (s *Server) handleFileDownloadById(c *gin.Context) {
 		}
 	}
 
-	// if meta.UserId != session.UserId {
-	// 	c.JSON(500, gin.H{"err": "Unauthorized access to file from userId: " + session.UserId})
-	// 	return
-	// }
+	if meta.UserId != session.UserId {
+		c.JSON(500, gin.H{"err": "Unauthorized access to file from userId: " + session.UserId})
+		return
+	}
 
 	blob, err := s.cache.GetBlob(meta.Blob)
 	if err != nil {
