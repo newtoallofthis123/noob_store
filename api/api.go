@@ -32,12 +32,16 @@ func NewServer(logger *slog.Logger) *Server {
 
 	buckets, err := fs.DiscoverBuckets(env.BucketPath)
 
-	handler := fs.NewHandler(buckets, store, logger)
+	if len(buckets) == 0 {
+		buckets = fs.GenerateBuckets(env.BucketPath, 8)
+	}
+
+	handler := fs.NewHandler(buckets, &store, logger)
 
 	return &Server{
 		listenAddr: env.ListenAddr,
 		logger:     logger,
-		db:         store,
+		db:         &store,
 		handler:    &handler,
 	}
 }

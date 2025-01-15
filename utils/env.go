@@ -15,7 +15,11 @@ type Env struct {
 
 // Reads the .env file and returns an Env struct.
 func ReadEnv() Env {
-	godotenv.Load(".env")
+	if os.Getenv("GIN_MODE") == "release" {
+		godotenv.Load(".env.prod")
+	} else {
+		godotenv.Load(".env")
+	}
 
 	return Env{
 		ConnString: constructDbString(),

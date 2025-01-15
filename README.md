@@ -12,7 +12,8 @@ Written in Golang, this is a mono repo that holds the api as well as the fs laye
 - [x] Handler
 - [x] Api Layer
 - [x] Authentication
-- [ ] Horizontal Scaling
+- [x] Horizontal Scaling (using Docker)
+- [ ] Add Kubernetes Support
 - [ ] Integration
 - [ ] Lib
 
