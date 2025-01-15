@@ -9,7 +9,7 @@ import (
 
 func main() {
 	// New Json Logger
-	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 	server := api.NewServer(logger)
 	server.Start()

@@ -26,22 +26,32 @@ func NewServer(logger *slog.Logger) *Server {
 		panic(err)
 	}
 
+	logger.Info("Connected db storage")
+
 	err = store.InitTables()
 	if err != nil {
 		panic(err)
 	}
+
+	logger.Info("Initialized Tables")
 
 	cache, err := cache.NewCache(env.CacheConn)
 	if err != nil {
 		panic(err)
 	}
 
+	logger.Info("Connecyed to Cache")
+
 	buckets, err := fs.DiscoverBuckets(env.BucketPath)
 	if len(buckets) == 0 || err != nil {
 		buckets = fs.GenerateBuckets(env.BucketPath, 8)
 	}
 
+	logger.Info("Discovered and found buckets")
+
 	handler := fs.NewHandler(buckets, &store, logger)
+
+	logger.Info("Initialized new fs handler")
 
 	return &Server{
 		listenAddr: env.ListenAddr,
@@ -53,6 +63,7 @@ func NewServer(logger *slog.Logger) *Server {
 }
 
 func (s *Server) Start() {
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
 	r.GET("/ping", func(c *gin.Context) {
@@ -63,6 +74,8 @@ func (s *Server) Start() {
 	r.GET("/file/:id", s.handleFileDownloadById)
 	r.POST("/signup", s.handleCreateUser)
 	r.POST("/login", s.handleLoginUser)
+
+	s.logger.Info("Initialized routes")
 
 	err := r.Run(s.listenAddr)
 	if err != nil {

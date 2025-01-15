@@ -21,6 +21,7 @@ func (s *Server) handleCreateUser(c *gin.Context) {
 
 	passHash, err := bcrypt.GenerateFromPassword([]byte(password), 0)
 	if err != nil {
+		s.logger.Error("Failure in hashing password: " + err.Error())
 		c.JSON(500, gin.H{"err": "Password hashing failed with err: " + err.Error()})
 		return
 	}
@@ -33,6 +34,7 @@ func (s *Server) handleCreateUser(c *gin.Context) {
 
 	err = s.db.CreateUser(user)
 	if err != nil {
+		s.logger.Error("Failed to create user" + user.Id + " with err: " + err.Error())
 		c.JSON(500, gin.H{"err": "Error creating user: " + err.Error()})
 		return
 	}
@@ -44,6 +46,7 @@ func (s *Server) handleCreateUser(c *gin.Context) {
 
 	err = s.db.CreateSession(session)
 	if err != nil {
+		s.logger.Error("Failed to create session" + session.Id + " with err: " + err.Error())
 		c.JSON(500, gin.H{"err": "Error creating session: " + err.Error()})
 		return
 	}
@@ -75,6 +78,7 @@ func (s *Server) handleLoginUser(c *gin.Context) {
 	}
 
 	if bcrypt.CompareHashAndPassword(user.Password, []byte(password)) != nil {
+		s.logger.Error("Matching passwords not found for")
 		c.JSON(500, gin.H{"err": "Authorization failed"})
 		return
 	}
@@ -85,6 +89,7 @@ func (s *Server) handleLoginUser(c *gin.Context) {
 	}
 	err = s.db.CreateSession(session)
 	if err != nil {
+		s.logger.Error("Failed to create session" + session.Id + " with err: " + err.Error())
 		c.JSON(500, gin.H{"err": "Error creating session: " + err.Error()})
 		return
 	}
