@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"crypto/md5"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/newtoallofthis123/noob_store/types"
+	"github.com/newtoallofthis123/noob_store/utils"
 	"github.com/newtoallofthis123/ranhash"
 )
 
@@ -20,8 +20,16 @@ func NewBucket(bucketPath string) (*Bucket, error) {
 	}
 
 	endPos, err := f.Seek(0, io.SeekEnd)
+	if err != nil {
+		return nil, err
+	}
 
-	return &Bucket{id: bucketPath, file: f, path: bucketPath, pos: uint64(endPos)}, nil
+	stat, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Bucket{id: bucketPath, file: f, size: uint64(stat.Size()), path: bucketPath, pos: uint64(endPos)}, nil
 }
 
 // parseContent parses the content and header
@@ -32,7 +40,6 @@ func parseContent(content string) (string, string) {
 
 // writeData writes the data to the bucket
 func (b *Bucket) writeData(name string, content []byte) (uint64, error) {
-	// TODO: Handle the case of the len(content) exceeding length of int
 	contentLength := uint64(len(content))
 
 	ogPos := b.pos
@@ -75,18 +82,8 @@ func (b *Bucket) writeFooter() error {
 // NewBlob returns a new blob for a filename and it's content
 func (b *Bucket) NewBlob(name string, content []byte) (types.Blob, error) {
 	id := ranhash.GenerateRandomString(8)
-	hash := md5.New()
+	checksum := utils.CalHash(content)
 
-	lim := 100
-	// Only take the checksum of 1024 bytes cause we don't want the checksum to be too big
-	toHash := make([]byte, len(content))
-	copy(toHash, content)
-
-	if len(toHash) > lim {
-		toHash = toHash[:lim]
-	}
-
-	checksum := hash.Sum(toHash)
 	bucketId := b.file.Name()
 	start := b.pos
 

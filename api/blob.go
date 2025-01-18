@@ -2,9 +2,11 @@ package api
 
 import (
 	"io"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/newtoallofthis123/noob_store/types"
+	"github.com/newtoallofthis123/noob_store/utils"
 )
 
 func (s *Server) checkAuth(authKey string) (types.Session, bool) {
@@ -120,6 +122,11 @@ func (s *Server) handleFileDownloadById(c *gin.Context) {
 		return
 	}
 
+	checksum := utils.CalHash(blob.Content)
+	if checksum != blob.Checksum {
+		c.JSON(500, gin.H{"err": "File check validity failed! File recovery not possible: recommeneded deletion"})
+	}
+
 	n, err := c.Writer.Write(blob.Content)
 	if err != nil {
 		s.logger.Error("Failed to write data to response for blob: " + blob.Id + " with err: " + err.Error())
@@ -131,7 +138,6 @@ func (s *Server) handleFileDownloadById(c *gin.Context) {
 		c.JSON(500, gin.H{"err": "File integrity check failed"})
 		return
 	}
-	//TODO: Add hash check
 }
 func (s *Server) handleFileAdd(c *gin.Context) {
 	authKey := c.GetHeader("Authorization")
@@ -168,6 +174,14 @@ func (s *Server) handleFileAdd(c *gin.Context) {
 		return
 	}
 
+	path = filepath.Clean(path)
+	existing, err := s.db.GetMetaDataByPath(path)
+	if err == nil && existing.UserId == session.UserId {
+		s.logger.Error("Attempt at adding duplicate path: " + path)
+		c.JSON(500, gin.H{"err": "Path already exists for user in store"})
+		return
+	}
+
 	blob, meta, err := s.handler.Insert(path, content, session.UserId)
 	err = s.db.InsertBlob(blob)
 	if err != nil {
@@ -195,6 +209,8 @@ func (s *Server) handleFileAdd(c *gin.Context) {
 	}
 
 	s.logger.Debug("Successfully added blob: " + blob.Id)
+	s.logger.Info("Added to bucket: " + blob.Bucket)
+	s.handler.LogBucketsInfo()
 	c.JSON(200, meta)
 }
 

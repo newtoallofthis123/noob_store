@@ -8,7 +8,7 @@ type Blob struct {
 	Start     uint64 `json:"start,omitempty"`
 	Content   []byte `json:"content,omitempty"`
 	Size      uint64 `json:"size,omitempty"`
-	Checksum  []byte `json:"checksum,omitempty"`
+	Checksum  string `json:"checksum,omitempty"`
 	Deleted   bool   `json:"deleted,omitempty"`
 	CreatedAt string `json:"created_at,omitempty"`
 }
@@ -49,7 +49,7 @@ type Metadata struct {
 type User struct {
 	Id        string `json:"id,omitempty"`
 	Email     string `json:"email,omitempty"`
-	Password  []byte `json:"password,omitempty"`
+	Password  string `json:"password,omitempty"`
 	CreatedAt string `json:"created_at,omitempty"`
 }
 

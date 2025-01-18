@@ -15,7 +15,11 @@ Written in Golang, this is a mono repo that holds the api as well as the fs laye
 - [x] Horizontal Scaling (using Docker)
 - [x] Add Cache layer
 - [x] Logs
-- [ ] Atomic Operations
+- [x] Atomic Metadata Operations
+- [ ] Optimize Blob storage
+- [ ] Bucket Delegation Algorithm
+- [ ] Secondary Writes to Bucket
+- [ ] Atomic FS Layer Operations
 
 ## License
 

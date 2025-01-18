@@ -32,7 +32,7 @@ func (s *Store) InitTables() error {
 		bucket text not null,
 		start bigint not null,
 		size bigint not null,
-		checksum bytea not null,
+		checksum text not null,
 		deleted boolean default false,
 		created_at timestamp default now()
 	);
@@ -40,7 +40,7 @@ func (s *Store) InitTables() error {
 	CREATE TABLE IF NOT EXISTS users(
 		id text primary key,
 		email text not null,
-		password bytea not null,
+		password text not null,
 		created_at timestamp default now()
 	);
 
@@ -60,13 +60,6 @@ func (s *Store) InitTables() error {
 		user_id text references users(id),
 		created_at timestamp default now()
 	);
-
-	CREATE TABLE IF NOT EXISTS buckets(
-		id text primary key,
-		name text not null,
-		path text not null,
-		blobs text[]
-	)
 	`
 
 	_, err := s.db.Exec(query)
