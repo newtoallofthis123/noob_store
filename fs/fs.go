@@ -66,6 +66,7 @@ func (h *Handler) selectRandomBucket() *Bucket {
 	return nil
 }
 
+// selectFirstBucket selects the first bucket from the available buckets.
 func (h *Handler) selectFirstBucket() *Bucket {
 	for _, b := range h.buckets {
 		return b
@@ -74,6 +75,7 @@ func (h *Handler) selectFirstBucket() *Bucket {
 	return nil
 }
 
+// selectBestBucket selects the best bucket from the available buckets.
 func (h *Handler) selectBestBucket() *Bucket {
 	lowest := h.selectFirstBucket()
 	for _, b := range h.buckets {

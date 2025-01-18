@@ -32,22 +32,11 @@ func NewBucket(bucketPath string) (*Bucket, error) {
 	return &Bucket{id: bucketPath, file: f, size: uint64(stat.Size()), path: bucketPath, pos: uint64(endPos)}, nil
 }
 
-// parseContent parses the content and header
-func parseContent(content string) (string, string) {
-	strSplit := strings.SplitN(content, "--", 4)
-	return strSplit[1], strSplit[2]
-}
-
 // writeData writes the data to the bucket
 func (b *Bucket) writeData(name string, content []byte) (uint64, error) {
 	contentLength := uint64(len(content))
 
 	ogPos := b.pos
-	// err := b.writeHeader(name, contentLength)
-	// if err != nil {
-	// 	return 0, err
-	// }
-
 	n, err := b.file.Write(content)
 	if err != nil {
 		return 0, err
@@ -56,27 +45,10 @@ func (b *Bucket) writeData(name string, content []byte) (uint64, error) {
 		return 0, fmt.Errorf("Data integrity spoilt for: " + name)
 	}
 
-	// err = b.writeFooter()
-
 	endPos, err := b.file.Seek(0, io.SeekEnd)
 	b.pos = uint64(endPos)
 
 	return uint64(endPos - int64(ogPos)), err
-}
-
-// writeHeader writes the header
-func (b *Bucket) writeHeader(name string, size uint64) error {
-	// WARNING: We assume that the writing of the header is always valid
-
-	_, err := b.file.Write([]byte(fmt.Sprintf("--%d%s&%d&%d--", VERSION, name, size, b.pos)))
-	return err
-}
-
-// writeFooter writes the footer
-func (b *Bucket) writeFooter() error {
-	// WARNING: We assume that the writing of the footer is always valid
-	_, err := b.file.Write([]byte("--&--"))
-	return err
 }
 
 // NewBlob returns a new blob for a filename and it's content
