@@ -72,6 +72,9 @@ func (s *Server) handleFileMetadataById(c *gin.Context) {
 
 func (s *Server) handleFileDownloadById(c *gin.Context) {
 	authKey := c.GetHeader("Authorization")
+	if authKey == "" {
+		authKey = c.Query("session")
+	}
 	session, exists := s.checkAuth(authKey)
 	if !exists {
 		s.logger.Error("Unauthorized session: " + authKey)

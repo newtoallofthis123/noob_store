@@ -68,7 +68,7 @@ func NewServer(logger *slog.Logger) *Server {
 func (s *Server) Pruner() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// To make sure that this runs very very very rarely, we make up a math thing that it has to get through
-		n := rand.Int63n(int64(s.counter))
+		n := rand.Int63()
 		// Every 7th attempt, there is a 50-50 chance of this executing
 		if s.counter%7 == 0 && n%2 == 0 {
 			err := s.DeleteFreeSpace()

@@ -187,11 +187,9 @@ func (h *Handler) fillBlob(blob *types.Blob) error {
 	}
 
 	buff := make([]byte, blob.Size)
-	fmt.Println(blob.Start, blob.Size)
 
 	n, err := file.ReadAt(buff, int64(blob.Start))
 	if err != nil {
-		fmt.Println(n, blob.Start)
 		h.logger.Error("Error reading bucket: " + b.id + " with err: " + err.Error())
 		return err
 	}
