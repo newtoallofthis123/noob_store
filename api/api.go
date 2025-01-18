@@ -66,8 +66,8 @@ func (s *Server) Start() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.String(200, "pong")
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{"noob_store": gin.H{"version": "0.1", "author": "NoobScience", "status": "up"}})
 	})
 	r.POST("/add", s.handleFileAdd)
 	r.GET("/info/:id", s.handleFileMetadataById)
@@ -83,6 +83,7 @@ func (s *Server) Start() {
 	user.DELETE("/delete_dir/:dir", s.handleDeleteDir)
 
 	s.logger.Info("Initialized routes")
+	s.handler.LogBucketsInfo()
 
 	err := r.Run(s.listenAddr)
 	if err != nil {

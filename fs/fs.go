@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand"
+	"mime"
 	"os"
 	"path/filepath"
 
+	"github.com/dustin/go-humanize"
 	"github.com/newtoallofthis123/noob_store/db"
 	"github.com/newtoallofthis123/noob_store/types"
 	"github.com/newtoallofthis123/ranhash"
@@ -15,10 +17,14 @@ import (
 
 const VERSION = 0
 
+// THRESHOLD is set to about 1 GB
+const THRESHOLD = 1024 * 1024 * 1024
+
 // Bucket represents a bucket file
 type Bucket struct {
 	file *os.File
 	path string
+	size uint64
 	id   string
 	pos  uint64
 }
@@ -47,8 +53,8 @@ func NewHandler(bucketPaths []string, store *db.Store, logger *slog.Logger) Hand
 	}
 }
 
-// selectBucket selects and returns a bucket randomly
-func (h *Handler) selectBucket() *Bucket {
+// selectRandomBucket selects and returns a bucket randomly
+func (h *Handler) selectRandomBucket() *Bucket {
 	ran := rand.Intn(len(h.buckets))
 	c := 0
 	for _, b := range h.buckets {
@@ -60,16 +66,56 @@ func (h *Handler) selectBucket() *Bucket {
 	return nil
 }
 
+func (h *Handler) selectFirstBucket() *Bucket {
+	for _, b := range h.buckets {
+		return b
+	}
+
+	return nil
+}
+
+func (h *Handler) selectBestBucket() *Bucket {
+	lowest := h.selectFirstBucket()
+	for _, b := range h.buckets {
+		if b.size < lowest.size {
+			lowest = b
+		}
+	}
+
+	return lowest
+}
+
+// selectBucket selects bucket on a random chance of selecting the best bucket and selecting a random bucket
+// There is a 66% chance of selecting a random bucket and 33% chance of selecting the best bucket
+func (h *Handler) selectBucket(minSize uint64) *Bucket {
+	ran := rand.Intn(3)
+	var b *Bucket
+	if ran == 1 {
+		b = h.selectBestBucket()
+	} else {
+		b = h.selectRandomBucket()
+	}
+	if THRESHOLD-b.size < minSize {
+		b = h.selectBucket(minSize)
+	} else if b.size >= THRESHOLD {
+		b = h.selectBucket(minSize)
+	}
+	return b
+}
+
 // Insert inserts a new blob into a random bucket
 func (h *Handler) Insert(fullPath string, content []byte, userId string) (types.Blob, types.Metadata, error) {
-	b := h.selectBucket()
+	b := h.selectBucket(uint64(len(content)))
 	meta := NewMetaData(fullPath, userId)
+	if meta.Mime == "" {
+		meta.Mime = mimemagic.MatchMagic(content).MediaType()
+	}
+
 	blob, err := b.NewBlob(meta.Path, content)
 	if err != nil {
 		h.logger.Error("Error appending blob: " + err.Error())
 		return types.Blob{}, types.Metadata{}, err
 	}
-	h.logger.Debug("Appened Blob to bucket: " + meta.Path)
 	meta.Blob = blob.Id
 
 	return blob, meta, nil
@@ -80,10 +126,9 @@ func NewMetaData(fullPath string, userId string) types.Metadata {
 	fullPath = filepath.Clean(fullPath)
 	name := filepath.Base(fullPath)
 	parent := filepath.Dir(fullPath)
-	mime := ""
-	m, err := mimemagic.MatchFilePath(name)
-	if err == nil {
-		mime = m.MediaType()
+	mime := mime.TypeByExtension(filepath.Ext(name))
+	if mime == "" {
+		mime = mimemagic.MatchGlob(name).MediaType()
 	}
 
 	return types.Metadata{
@@ -107,8 +152,6 @@ func (h *Handler) fillBlob(blob *types.Blob) error {
 	}
 
 	buff := make([]byte, blob.Size)
-
-	fmt.Println(len(buff))
 
 	n, err := file.ReadAt(buff, int64(blob.Start))
 	if err != nil {
@@ -145,4 +188,13 @@ func (h *Handler) GetDir(blobs []*types.Blob) error {
 	}
 
 	return nil
+}
+
+// LogBucketsInfo logs information about the bucket at the INFO level
+func (h *Handler) LogBucketsInfo() {
+	for i, b := range h.buckets {
+		stat, _ := b.file.Stat()
+		buckStr := fmt.Sprintf("name: %s | size: %s | filled: %t", i, humanize.Bytes(uint64(stat.Size())), stat.Size() > THRESHOLD)
+		h.logger.Info(buckStr)
+	}
 }

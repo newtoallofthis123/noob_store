@@ -32,7 +32,7 @@ func (s *Server) handleCreateUser(c *gin.Context) {
 	user := types.User{
 		Id:       ranhash.GenerateRandomString(8),
 		Email:    email,
-		Password: passHash,
+		Password: string(passHash),
 	}
 
 	err = s.db.CreateUser(user)
@@ -80,7 +80,7 @@ func (s *Server) handleLoginUser(c *gin.Context) {
 		return
 	}
 
-	if bcrypt.CompareHashAndPassword(user.Password, []byte(password)) != nil {
+	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) != nil {
 		s.logger.Error("Matching passwords not found for")
 		c.JSON(500, gin.H{"err": "Authorization failed"})
 		return

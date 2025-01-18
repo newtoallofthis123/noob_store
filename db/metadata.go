@@ -14,8 +14,8 @@ func (db *Store) InsertMetaData(meta types.Metadata) error {
 }
 
 // GetMetaData gets the metadata by the name and path
-func (db *Store) GetMetaData(name, path string) (types.Metadata, error) {
-	row := db.pq.Select("*").From("metadata").Where("name LIKE ? AND path LIKE ?", name, path).RunWith(db.db).QueryRow()
+func (db *Store) GetMetaDataByPath(path string) (types.Metadata, error) {
+	row := db.pq.Select("*").From("metadata").Where("path LIKE ?", path).RunWith(db.db).QueryRow()
 
 	var meta types.Metadata
 
