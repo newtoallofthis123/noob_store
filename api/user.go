@@ -43,7 +43,7 @@ func (s *Server) handleCreateUser(c *gin.Context) {
 	}
 
 	session := types.Session{
-		Id:     ranhash.GenerateRandomString(8),
+		Id:     ranhash.GenerateRandomString(16),
 		UserId: user.Id,
 	}
 
@@ -87,7 +87,7 @@ func (s *Server) handleLoginUser(c *gin.Context) {
 	}
 
 	session := types.Session{
-		Id:     ranhash.GenerateRandomString(8),
+		Id:     ranhash.GenerateRandomString(16),
 		UserId: user.Id,
 	}
 	err = s.db.CreateSession(session)

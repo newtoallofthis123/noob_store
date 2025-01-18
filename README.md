@@ -16,9 +16,10 @@ Written in Golang, this is a mono repo that holds the api as well as the fs laye
 - [x] Add Cache layer
 - [x] Logs
 - [x] Atomic Metadata Operations
-- [ ] Optimize Blob storage
-- [ ] Bucket Delegation Algorithm
-- [ ] Secondary Writes to Bucket
+- [x] Optimize Blob storage
+- [x] Bucket Delegation Algorithm
+- [x] Secondary Writes to Bucket (Free up space)
+- [ ] Automatic Buckets Expand
 - [ ] Atomic FS Layer Operations
 
 ## License

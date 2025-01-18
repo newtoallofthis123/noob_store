@@ -3,6 +3,7 @@ package api
 import (
 	"io"
 	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/newtoallofthis123/noob_store/types"
@@ -14,6 +15,7 @@ func (s *Server) checkAuth(authKey string) (types.Session, bool) {
 		return types.Session{}, false
 	}
 
+	authKey = strings.Replace(authKey, "Bearer ", "", 1)
 	session, err := s.cache.GetSession(authKey)
 	if err != nil {
 		session, err = s.db.GetSession(authKey)
@@ -311,4 +313,49 @@ func (s *Server) handleDeleteDir(c *gin.Context) {
 	} else {
 		c.JSON(200, gin.H{"success": "Deleted dir: " + dir})
 	}
+}
+
+// DeleteFreeSpace interfaces with the fs handler, db and cache
+// to freeup deleted space from buckets
+// This is a very costly operation
+func (s *Server) DeleteFreeSpace() error {
+	// FIXME: Make me a admin route
+	// TODO: Setup admin routing system
+
+	buckets := s.handler.Buckets()
+	s.logger.Info("Starting prune operation: Costly brace for impact")
+	for id, bucket := range buckets {
+		blobs, err := s.db.GetBlobsInBucket(id)
+		if err != nil {
+			return err
+		}
+		if len(blobs) == 0 {
+			s.logger.Warn("No blobs found in bucket: " + bucket.Name() + "; Skipping")
+			continue
+		}
+		err = s.cache.DeleteBlobs(blobs)
+		if err != nil {
+			s.logger.Warn("Error in Invalidating cache: " + err.Error())
+		}
+		nb, err := s.handler.FreeSpace(bucket, blobs)
+		if err != nil {
+			s.logger.Error("FS Handler unable to freespace in bucket: " + bucket.Name() + "; Non Atomic Err")
+			return err
+		}
+
+		for _, b := range nb {
+			var err error
+			if b.Deleted {
+				err = s.db.DeleteBlobById(b.Id)
+				s.logger.Info("Deleted blob with id: " + b.Id)
+			} else {
+				err = s.db.ChangeBlobStart(b.Id, b.Start)
+			}
+			if err != nil {
+				s.logger.Error("Store unable to update bucket info: " + bucket.Name() + "; Non Atomic Err")
+				return err
+			}
+		}
+	}
+	return nil
 }

@@ -36,3 +36,11 @@ func (c *Cache) GetBlob(blobId string) (types.Blob, error) {
 
 	return blob, nil
 }
+
+func (c *Cache) DeleteBlobs(blobs []types.Blob) error {
+	var err error
+	for _, blobId := range blobs {
+		_, err = c.r.Del(c.ctx, blobId.Id).Result()
+	}
+	return err
+}

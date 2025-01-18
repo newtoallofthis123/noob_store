@@ -2,6 +2,7 @@ package api
 
 import (
 	"log/slog"
+	"math/rand"
 
 	"github.com/gin-gonic/gin"
 	"github.com/newtoallofthis123/noob_store/cache"
@@ -16,6 +17,7 @@ type Server struct {
 	db         *db.Store
 	cache      *cache.Cache
 	handler    *fs.Handler
+	counter    int64
 }
 
 func NewServer(logger *slog.Logger) *Server {
@@ -49,7 +51,7 @@ func NewServer(logger *slog.Logger) *Server {
 
 	logger.Info("Discovered and found buckets")
 
-	handler := fs.NewHandler(buckets, &store, logger)
+	handler := fs.NewHandler(buckets, logger, &env)
 
 	logger.Info("Initialized new fs handler")
 
@@ -62,9 +64,27 @@ func NewServer(logger *slog.Logger) *Server {
 	}
 }
 
+// Pruner returns a gin.HandlerFunc that prunes old or unnecessary data from the server.
+func (s *Server) Pruner() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// To make sure that this runs very very very rarely, we make up a math thing that it has to get through
+		n := rand.Int63n(int64(s.counter))
+		// Every 7th attempt, there is a 50-50 chance of this executing
+		if s.counter%7 == 0 && n%2 == 0 {
+			err := s.DeleteFreeSpace()
+			if err != nil {
+				s.logger.Error("Failed to prune free space: With err: " + err.Error())
+			}
+		}
+		s.counter++
+	}
+}
+
 func (s *Server) Start() {
-	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
+
+	// Setup pruner as a middleware
+	r.Use(s.Pruner())
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"noob_store": gin.H{"version": "0.1", "author": "NoobScience", "status": "up"}})

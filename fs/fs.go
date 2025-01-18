@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/dustin/go-humanize"
-	"github.com/newtoallofthis123/noob_store/db"
 	"github.com/newtoallofthis123/noob_store/types"
+	"github.com/newtoallofthis123/noob_store/utils"
 	"github.com/newtoallofthis123/ranhash"
 	"github.com/zRedShift/mimemagic"
 )
@@ -33,10 +33,11 @@ type Bucket struct {
 type Handler struct {
 	buckets map[string]*Bucket
 	logger  *slog.Logger
+	env     *utils.Env
 }
 
 // NewHandler initializes a new handler
-func NewHandler(bucketPaths []string, store *db.Store, logger *slog.Logger) Handler {
+func NewHandler(bucketPaths []string, logger *slog.Logger, env *utils.Env) Handler {
 	buckets := make(map[string]*Bucket, 0)
 	for _, path := range bucketPaths {
 		b, err := NewBucket(path)
@@ -50,6 +51,19 @@ func NewHandler(bucketPaths []string, store *db.Store, logger *slog.Logger) Hand
 	return Handler{
 		buckets: buckets,
 		logger:  logger,
+		env:     env,
+	}
+}
+
+// AddBuckets adds the given bucket paths to the handler's list of buckets.
+func (h *Handler) AddBuckets(bucketPaths []string) {
+	for _, path := range bucketPaths {
+		b, err := NewBucket(path)
+		if err != nil {
+			h.logger.Error("Unable to create bucket with path: " + path)
+		}
+
+		h.buckets[path] = b
 	}
 }
 
@@ -87,11 +101,29 @@ func (h *Handler) selectBestBucket() *Bucket {
 	return lowest
 }
 
+// areBucketsFull checks if the buckets are full based on the given minimum size.
+func (h *Handler) areBucketsFull(minSize uint64) bool {
+	full := true
+	for _, b := range h.buckets {
+		if b.size <= THRESHOLD && THRESHOLD-b.size > minSize {
+			full = false
+		}
+	}
+
+	return full
+}
+
 // selectBucket selects bucket on a random chance of selecting the best bucket and selecting a random bucket
 // There is a 66% chance of selecting a random bucket and 33% chance of selecting the best bucket
 func (h *Handler) selectBucket(minSize uint64) *Bucket {
 	ran := rand.Intn(3)
 	var b *Bucket
+
+	if h.areBucketsFull(minSize) {
+		buckets := GenerateBuckets(h.env.BucketPath, 8)
+		h.AddBuckets(buckets)
+	}
+
 	if ran == 1 {
 		b = h.selectBestBucket()
 	} else {
@@ -119,6 +151,7 @@ func (h *Handler) Insert(fullPath string, content []byte, userId string) (types.
 		return types.Blob{}, types.Metadata{}, err
 	}
 	meta.Blob = blob.Id
+	b.size += blob.Size
 
 	return blob, meta, nil
 }
@@ -154,10 +187,12 @@ func (h *Handler) fillBlob(blob *types.Blob) error {
 	}
 
 	buff := make([]byte, blob.Size)
+	fmt.Println(blob.Start, blob.Size)
 
 	n, err := file.ReadAt(buff, int64(blob.Start))
 	if err != nil {
-		h.logger.Error("Error reading bucket: " + err.Error())
+		fmt.Println(n, blob.Start)
+		h.logger.Error("Error reading bucket: " + b.id + " with err: " + err.Error())
 		return err
 	}
 
@@ -199,4 +234,16 @@ func (h *Handler) LogBucketsInfo() {
 		buckStr := fmt.Sprintf("name: %s | size: %s | filled: %t", i, humanize.Bytes(uint64(stat.Size())), stat.Size() > THRESHOLD)
 		h.logger.Info(buckStr)
 	}
+}
+
+func (h *Handler) Buckets() map[string]*Bucket {
+	return h.buckets
+}
+
+func (h *Handler) FreeSpace(bucket *Bucket, blobs []types.Blob) ([]types.Blob, error) {
+	for i := range blobs {
+		h.fillBlob(&blobs[i])
+	}
+
+	return bucket.deleteBlobs(blobs)
 }
