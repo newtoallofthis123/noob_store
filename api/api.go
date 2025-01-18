@@ -3,6 +3,7 @@ package api
 import (
 	"log/slog"
 	"math/rand"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/newtoallofthis123/noob_store/cache"
@@ -18,6 +19,8 @@ type Server struct {
 	cache      *cache.Cache
 	handler    *fs.Handler
 	counter    int64
+	mu         sync.RWMutex
+	pruning    bool
 }
 
 func NewServer(logger *slog.Logger) *Server {
@@ -61,6 +64,7 @@ func NewServer(logger *slog.Logger) *Server {
 		db:         &store,
 		cache:      &cache,
 		handler:    &handler,
+		counter:    0,
 	}
 }
 
@@ -69,14 +73,16 @@ func (s *Server) Pruner() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// To make sure that this runs very very very rarely, we make up a math thing that it has to get through
 		n := rand.Int63()
-		// Every 7th attempt, there is a 50-50 chance of this executing
-		if s.counter%7 == 0 && n%2 == 0 {
+		s.mu.Lock()
+		if s.counter%7 == 0 && n%14 == 0 && !s.pruning {
 			err := s.DeleteFreeSpace()
 			if err != nil {
 				s.logger.Error("Failed to prune free space: With err: " + err.Error())
 			}
+			s.pruning = true
 		}
 		s.counter++
+		s.mu.Unlock()
 	}
 }
 

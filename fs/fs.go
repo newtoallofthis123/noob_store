@@ -194,8 +194,6 @@ func (h *Handler) fillBlob(blob *types.Blob) error {
 		return err
 	}
 
-	// _, content := parseContent(string(buff[:n]))
-
 	blob.Content = []byte(buff[:n])
 
 	return nil

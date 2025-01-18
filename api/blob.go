@@ -88,6 +88,7 @@ func (s *Server) handleFileDownloadById(c *gin.Context) {
 		return
 	}
 
+	s.mu.RLock()
 	meta, err := s.cache.GetMetadata(id)
 	if err != nil {
 		s.logger.Debug("Cache miss for metadata: " + id + " with err: " + err.Error())
@@ -101,6 +102,7 @@ func (s *Server) handleFileDownloadById(c *gin.Context) {
 		_ = s.cache.InsertMetadata(meta)
 		s.logger.Debug("Cache refreshed for metadata with id: " + meta.Id)
 	}
+	s.mu.RUnlock()
 
 	if meta.UserId != session.UserId {
 		s.logger.Warn("Prevented Unauthorized access for file from userId" + session.UserId)
@@ -108,6 +110,7 @@ func (s *Server) handleFileDownloadById(c *gin.Context) {
 		return
 	}
 
+	s.mu.RLock()
 	blob, err := s.cache.GetBlob(meta.Blob)
 	if err != nil {
 		s.logger.Debug("Cache miss for blob with id: " + meta.Blob + " with err: " + err.Error())
@@ -119,6 +122,7 @@ func (s *Server) handleFileDownloadById(c *gin.Context) {
 		}
 		s.logger.Debug("Cache refreshed for blob with id: " + meta.Blob)
 	}
+	s.mu.RUnlock()
 
 	err = s.handler.Get(&blob)
 	if err != nil {
@@ -180,13 +184,16 @@ func (s *Server) handleFileAdd(c *gin.Context) {
 	}
 
 	path = filepath.Clean(path)
+	s.mu.RLock()
 	existing, err := s.db.GetMetaDataByPath(path)
 	if err == nil && existing.UserId == session.UserId {
 		s.logger.Error("Attempt at adding duplicate path: " + path)
 		c.JSON(500, gin.H{"err": "Path already exists for user in store"})
 		return
 	}
+	s.mu.RUnlock()
 
+	s.mu.Lock()
 	blob, meta, err := s.handler.Insert(path, content, session.UserId)
 	err = s.db.InsertBlob(blob)
 	if err != nil {
@@ -212,6 +219,7 @@ func (s *Server) handleFileAdd(c *gin.Context) {
 		c.JSON(500, gin.H{"err": "Unable to insert file: " + err.Error()})
 		return
 	}
+	s.mu.Unlock()
 
 	s.logger.Debug("Successfully added blob: " + blob.Id)
 	s.logger.Info("Added to bucket: " + blob.Bucket)
@@ -230,12 +238,14 @@ func (s *Server) handleDeleteFile(c *gin.Context) {
 
 	fileId := c.Param("id")
 
+	s.mu.RLock()
 	meta, err := s.db.GetMetaDataById(fileId)
 	if err != nil {
 		s.logger.Error("Unable to find file with id: " + fileId + " with err: " + err.Error())
 		c.JSON(500, gin.H{"err": "Unable to find file"})
 		return
 	}
+	s.mu.RUnlock()
 
 	if meta.UserId != session.UserId {
 		s.logger.Warn("Prevented Unauthorized access of file: " + fileId + " by user " + session.UserId)
@@ -243,6 +253,7 @@ func (s *Server) handleDeleteFile(c *gin.Context) {
 		return
 	}
 
+	s.mu.Lock()
 	err = s.db.DeleteMetadataById(meta.Id)
 	if err != nil {
 		s.logger.Error("Unable to delete file with id: " + fileId + " with err: " + err.Error())
@@ -257,6 +268,7 @@ func (s *Server) handleDeleteFile(c *gin.Context) {
 	}
 
 	_ = s.db.MarkBlobDelete(meta.Blob)
+	s.mu.Unlock()
 
 	c.JSON(200, gin.H{"success": "Deleted file with id: " + fileId})
 }
@@ -272,16 +284,19 @@ func (s *Server) handleDeleteDir(c *gin.Context) {
 
 	dir := c.Param("dir")
 
+	s.mu.RLock()
 	metas, err := s.db.GetMetaDataByDir(dir)
 	if err != nil {
 		s.logger.Error("Unable to find file with id: " + dir + " with err: " + err.Error())
 		c.JSON(500, gin.H{"err": "Unable to find file"})
 		return
 	}
+	s.mu.RUnlock()
 
 	bak := make([]types.Metadata, 0)
 	hasErr := false
 
+	s.mu.Lock()
 	for _, meta := range metas {
 		bak = append(bak, meta)
 		if meta.UserId != session.UserId {
@@ -305,6 +320,7 @@ func (s *Server) handleDeleteDir(c *gin.Context) {
 			err = s.db.MarkBlobDelete(m.Blob)
 		}
 	}
+	s.mu.Unlock()
 	if err != nil {
 		s.logger.Error("Unabled to recover from dir deletion operation failure: " + dir + " with err: " + err.Error())
 		c.JSON(500, gin.H{"err": "Delete failed unatomically"})

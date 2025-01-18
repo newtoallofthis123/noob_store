@@ -20,6 +20,7 @@ Written in Golang, this is a mono repo that holds the api as well as the fs laye
 - [x] Bucket Delegation Algorithm
 - [x] Secondary Writes to Bucket (Free up space)
 - [x] Automatic Buckets Expand
+- [x] Fix Concurrency Issues
 - [ ] Atomic FS Layer Operations
 
 ## License
