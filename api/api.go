@@ -23,9 +23,7 @@ type Server struct {
 	pruning    bool
 }
 
-func NewServer(logger *slog.Logger) *Server {
-	env := utils.ReadEnv()
-
+func NewServer(env *utils.Env, logger *slog.Logger) *Server {
 	store, err := db.NewStore(env.ConnString)
 	if err != nil {
 		panic(err)
@@ -54,7 +52,7 @@ func NewServer(logger *slog.Logger) *Server {
 
 	logger.Info("Discovered and found buckets")
 
-	handler := fs.NewHandler(buckets, logger, &env)
+	handler := fs.NewHandler(buckets, logger, env)
 
 	logger.Info("Initialized new fs handler")
 
@@ -92,6 +90,7 @@ func (s *Server) Start() {
 	// Setup pruner as a middleware
 	r.Use(s.Pruner())
 
+	// To be used to measure latency
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"noob_store": gin.H{"version": "0.1", "author": "NoobScience", "status": "up"}})
 	})

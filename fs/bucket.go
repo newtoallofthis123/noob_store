@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -33,23 +32,22 @@ func NewBucket(bucketPath string) (*Bucket, error) {
 	return &Bucket{id: bucketPath, file: f, size: uint64(stat.Size()), path: bucketPath, pos: uint64(endPos)}, nil
 }
 
-// writeData writes the data to the bucket
-func (b *Bucket) writeData(name string, content []byte) (uint64, error) {
-	contentLength := uint64(len(content))
-
+// writeData writes the data to the bucket atomically
+func (b *Bucket) writeData(content []byte) (uint64, error) {
 	ogPos := b.pos
-	n, err := b.file.Write(content)
+	_, err := b.file.Write(content)
 	if err != nil {
 		return 0, err
-	}
-	if n != int(contentLength) {
-		return 0, fmt.Errorf("Data integrity spoilt for: " + name)
 	}
 
 	endPos, err := b.file.Seek(0, io.SeekEnd)
 	b.pos = uint64(endPos)
 
-	return uint64(endPos - int64(ogPos)), err
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(endPos - int64(ogPos)), nil
 }
 
 func (b *Bucket) deleteBlobs(blobs []types.Blob) ([]types.Blob, error) {
@@ -99,7 +97,11 @@ func (b *Bucket) NewBlob(name string, content []byte) (types.Blob, error) {
 	bucketId := b.file.Name()
 	start := b.pos
 
-	size, err := b.writeData(name, content)
+	size, err := b.writeData(content)
+	if err != nil {
+		return types.Blob{}, err
+	}
+
 	b.pos += size
 
 	blob := types.Blob{
@@ -109,9 +111,6 @@ func (b *Bucket) NewBlob(name string, content []byte) (types.Blob, error) {
 		Size:     size,
 		Start:    start,
 		Checksum: checksum,
-	}
-	if err != nil {
-		return types.Blob{}, err
 	}
 
 	return blob, nil
